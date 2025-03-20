@@ -104,9 +104,13 @@ colstrings = {
     'end'      : '\033[0m'
 }    
 
-def get_csp_header_for_domain(url):
+def get_csp_header_for_domain(url, header_name):
     r = requests.get(url)
-    return dict(r.headers).get('content-security-policy-report-only')
+    if (value := dict(r.headers).get(header_name)) is not None:
+        return value
+    print(f'Could not extract {header_name}. Headers returned: {",".join(r.headers)}')
+    sys.exit(1)
+
 
 def colour_value_string(directive, value):
     if directive not in directives_values_colours_map:
@@ -151,9 +155,10 @@ def nice_csp_print(header_val):
     return op    
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print('Usage: python3 nicecsp.py <url>')
+    if len(sys.argv) != 3:
+        print('Usage: python3 nicecsp.py <url> <header_name>')
         sys.exit(1)
 
-    header_val = get_csp_header_for_domain(sys.argv[1])
+    header_val = get_csp_header_for_domain(sys.argv[1], sys.argv[2])
     print(nice_csp_print(header_val))
+    sys.exit(0)
