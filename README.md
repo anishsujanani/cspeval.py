@@ -19,4 +19,4 @@ Usage:
 python3 cspeval.py <domain> <header_name>
 ```
 
-[1]: https://github.com/anishsujanani/cspeval.py/blob/master/cspeval_op.gif 
+[1]: https://github.com/anishsujanani/cspeval.py/blob/main/cspeval_op.gif 
