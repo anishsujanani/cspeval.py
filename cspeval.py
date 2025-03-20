@@ -7,56 +7,91 @@ import requests
 import sys
 
 directives_values_colours_map = {
-    'font-src': {
-        'green': ['self', 'none'],
-        'red': ['*']
-    },
-    'form-action': {
-        'green': ['self', 'none'],
-        'red': ['*']
-    },
-    'default-src': { 
-        'red'  : ['*', 'data', 'blob', 'filesystem'], 
-        'green': ['none', 'self'] 
-    },
-    'base-uri': { 
-        'green': ['none', 'self'], 
-        'red'  : ['*'] 
+    'base-uri': { # no explicit red, * is invalid 
+        'green': ['none', 'self']
     },
     'child-src': {
         'green': ['none', 'self'],
-        'red'  : ['*']
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
     },
     'connect-src': {
-        'green': ['self', 'none'],
-        'red'  : ['*']
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
     },
-    'style-src': {
-        'red': ['unsafe-inline']
+    'default-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
     },
-    'img-src': {
-        'green': ['self', 'none'],
-        'red': ['*', 'blob', 'filesystem', 'data']
+    'font-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
+    },
+    'form-action': { # no explicit red, * is invalid
+        'green': ['self', 'none']
+    },
+    'frame-ancestors': { # no explicit red, * is invalid
+        'green': ['self', 'none'] 
     },
     'frame-src': {
-        'green': ['self', 'none'],
-        'red'  : ['*']
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
     },
-    'frame-ancestors': {
-        'green': ['self', 'none'],
-        'red'  : ['*']
+    'img-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'filesystems']
     },
-    'script-src': {
-        'green': ['self', 'none'],
-        'red'  : ['*']
-    },
-    'manifest-src': {
-        'green': ['self', 'none'],
-        'red': ['*']
+     'manifest-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
     },
     'media-src': {
-        'green': ['self', 'none'],
-        'red'  : ['*', 'filesystems', 'blob', 'data'],
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
+    },
+    'navigate-to': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
+    },
+    'object-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
+    },
+    'prefetch-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
+    },
+    'sandbox': {}, # max restriction without explicit values
+    'script-src': {
+        'green': ['none', 'self', 'report-sample'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'strict-dynamic']
+    },
+    'script-src-attr': {
+        'green': ['none', 'self', 'report-sample'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'strict-dynamic']
+    },
+    'script-src-elem': {
+        'green': ['none', 'self', 'report-sample'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'strict-dynamic']
+    },
+    'style-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'unsafe-hashes']
+    },
+    'style-src-attr': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'unsafe-hashes']
+    },
+    'style-src-elem': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob', 'unsafe-hashes']
+    },
+    'trusted-types': {
+        'green': ['default', 'none'],
+        'red': ['*'] 
+    },
+    'worker-src': {
+        'green': ['none', 'self'],
+        'red'  : ['unsafe-inline', 'unsafe-eval', 'data', 'blob']
     }
 }
 
@@ -71,7 +106,7 @@ colstrings = {
 
 def get_csp_header_for_domain(url):
     r = requests.get(url)
-    return dict(r.headers).get('Content-Security-Policy')
+    return dict(r.headers).get('content-security-policy-report-only')
 
 def colour_value_string(directive, value):
     if directive not in directives_values_colours_map:
@@ -84,13 +119,20 @@ def colour_value_string(directive, value):
 
     # if we didn't match this value against any known colouring rule, can apply custom colour here 
     if colapply == 'no_match':
-        # custom rule to green-highlight subdomains
-        # and cyan for external domains (or values that aren't explicitly red-highlighted)
-        _domain = sys.argv[1].split('://')[1].split('.')[-2] 
-        if _domain in _val:
-            colapply = colstrings['green']
-        else:
-            colapply = colstrings['cyan']
+
+        # custom rule to red-highlight custom policies in trusted_types directives
+        if directive == 'trusted_types':
+            colapply = colstrings['red']
+
+        # custom rule to green-highlight subdomains and cyan for external 
+        # domains (or values that aren't explicitly red-highlighted)
+        else:    
+            _domain = sys.argv[1].split('://')[1].split('.')[-2] 
+            if _domain in _val:
+                colapply = colstrings['green']
+            else:
+                colapply = colstrings['cyan']
+
 
     return f'{colapply}{value}{end}\n'
 
